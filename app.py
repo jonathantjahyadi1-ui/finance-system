@@ -75,7 +75,7 @@ with app.app_context():
         db.session.add(User(
             username="Martin",
             nama_lengkap="Martin",
-            password=generate_password_hash("Martin@direktur"),
+            password=generate_password_hash("123456"),
             role="direktur",
             divisi="Direksi"
         ))
