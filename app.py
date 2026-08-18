@@ -80,8 +80,44 @@ with app.app_context():
             divisi="Direksi"
         ))
 
-    # ACCOUNTING
-    if not User.query.filter_by(username="Aldo").first():
+    # ACCOUNTING: migrasikan akun lama tanpa memutus riwayat transaksi.
+    accounting_users = User.query.filter(
+        db.func.lower(User.username).in_(["aul", "aldo"]),
+        User.role == "accounting"
+    ).order_by(User.id.asc()).all()
+
+    legacy_accounting = next(
+        (user for user in accounting_users if user.username.lower() == "aul"),
+        None
+    )
+    accounting_user = legacy_accounting or (
+        accounting_users[0] if accounting_users else None
+    )
+
+    if accounting_user:
+        # Jika deploy lama sempat membuat akun Aldo baru, gabungkan datanya ke
+        # akun Aul lama agar semua riwayat tetap tersimpan pada satu user ID.
+        for duplicate_user in accounting_users:
+            if duplicate_user.id == accounting_user.id:
+                continue
+
+            ReimburseRequest.query.filter_by(user_id=duplicate_user.id).update(
+                {"user_id": accounting_user.id},
+                synchronize_session=False
+            )
+            PurchaseOrderRequest.query.filter_by(user_id=duplicate_user.id).update(
+                {"user_id": accounting_user.id},
+                synchronize_session=False
+            )
+            db.session.delete(duplicate_user)
+
+        db.session.flush()
+        accounting_user.username = "Aldo"
+        accounting_user.nama_lengkap = "Aldo"
+        accounting_user.password = generate_password_hash("Aldo@accounting")
+        accounting_user.role = "accounting"
+        accounting_user.divisi = "Accounting"
+    else:
         db.session.add(User(
             username="Aldo",
             nama_lengkap="Aldo",

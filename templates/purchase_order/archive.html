@@ -29,12 +29,6 @@
 
     <span class="navbar-brand ms-2">Arsip Purchase Order</span>
     
-    {% if user.role in ['admin', 'direktur', 'accounting'] %}
-<a href="{{ url_for('purchase_order.export_po_archive_excel') }}" class="btn btn-success btn-sm ms-3">
-    Export Excel
-</a>
-{% endif %}
-
     <div class="ms-auto text-white">
         {{ user.username }} ({{ user.role }})
         <a href="/logout" class="btn btn-sm btn-light ms-3">Logout</a>
@@ -45,7 +39,45 @@
     <div class="card p-4">
         <h4 class="mb-3">Arsip Purchase Order</h4>
 
-        <table class="table">
+        <form method="GET" action="{{ url_for('purchase_order.archive_po') }}" class="row g-2 align-items-end mb-4">
+            <div class="col-md-4">
+                <label for="bulan" class="form-label fw-semibold">Filter bulan pemesanan</label>
+                <input
+                    type="month"
+                    id="bulan"
+                    name="bulan"
+                    class="form-control"
+                    value="{{ bulan_filter }}"
+                >
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-primary">Tampilkan</button>
+            </div>
+            <div class="col-auto">
+                <a href="{{ url_for('purchase_order.archive_po') }}" class="btn btn-outline-secondary">
+                    Reset
+                </a>
+            </div>
+            {% if user.role in ['admin', 'direktur', 'accounting'] %}
+            <div class="col-md-auto ms-md-auto">
+                <a
+                    href="{{ url_for('purchase_order.export_po_archive_excel', bulan=bulan_filter) }}"
+                    class="btn btn-success"
+                >
+                    Export Excel
+                </a>
+            </div>
+            {% endif %}
+        </form>
+
+        {% if bulan_filter %}
+        <div class="alert alert-info py-2">
+            Menampilkan arsip pemesanan bulan {{ bulan_filter }}.
+        </div>
+        {% endif %}
+
+        <div class="table-responsive">
+        <table class="table align-middle">
             <thead>
                 <tr>
                     <th>Pengaju</th>
@@ -83,6 +115,7 @@
                 {% endfor %}
             </tbody>
         </table>
+        </div>
     </div>
 </div>
 

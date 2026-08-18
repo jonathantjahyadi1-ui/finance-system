@@ -30,6 +30,24 @@ def format_tanggal_excel(value, pakai_jam=False):
         return str(value)
 
 
+def get_month_range(bulan_filter):
+    """Ubah nilai YYYY-MM menjadi batas awal dan akhir bulan."""
+    if not bulan_filter:
+        return None, None
+
+    try:
+        month_start = datetime.strptime(bulan_filter, '%Y-%m')
+    except ValueError:
+        return None, None
+
+    if month_start.month == 12:
+        month_end = datetime(month_start.year + 1, 1, 1)
+    else:
+        month_end = datetime(month_start.year, month_start.month + 1, 1)
+
+    return month_start, month_end
+
+
 def label_status_po(status):
     labels = {
         'submitted': 'Menunggu Accounting',
@@ -135,12 +153,24 @@ def archive_po():
         return redirect('/login')
 
     cutoff = datetime.utcnow() - timedelta(days=7)
+    bulan_filter = request.args.get('bulan', '').strip()
+    month_start, month_end = get_month_range(bulan_filter)
+
+    if bulan_filter and month_start is None:
+        flash('Format bulan tidak valid.', 'danger')
+        return redirect(url_for('purchase_order.archive_po'))
 
     query = PurchaseOrderRequest.query.filter(
         PurchaseOrderRequest.status == 'ordered',
         PurchaseOrderRequest.ordered_at != None,
         PurchaseOrderRequest.ordered_at < cutoff
     )
+
+    if month_start:
+        query = query.filter(
+            PurchaseOrderRequest.ordered_at >= month_start,
+            PurchaseOrderRequest.ordered_at < month_end
+        )
 
     if user.role not in ['admin', 'direktur', 'accounting']:
         query = query.filter(PurchaseOrderRequest.user_id == user.id)
@@ -151,7 +181,8 @@ def archive_po():
         'purchase_order/archive.html',
         data=data,
         user=user,
-        get_user=get_user
+        get_user=get_user,
+        bulan_filter=bulan_filter
     )
 
 
@@ -477,6 +508,12 @@ def export_po_archive_excel():
         return redirect(url_for('purchase_order.archive_po'))
 
     cutoff = datetime.utcnow() - timedelta(days=7)
+    bulan_filter = request.args.get('bulan', '').strip()
+    month_start, month_end = get_month_range(bulan_filter)
+
+    if bulan_filter and month_start is None:
+        flash('Format bulan tidak valid.', 'danger')
+        return redirect(url_for('purchase_order.archive_po'))
 
     query = db.session.query(PurchaseOrderRequest, User).join(
         User, PurchaseOrderRequest.user_id == User.id
@@ -485,6 +522,12 @@ def export_po_archive_excel():
         PurchaseOrderRequest.ordered_at != None,
         PurchaseOrderRequest.ordered_at < cutoff
     )
+
+    if month_start:
+        query = query.filter(
+            PurchaseOrderRequest.ordered_at >= month_start,
+            PurchaseOrderRequest.ordered_at < month_end
+        )
 
     purchase_orders = query.order_by(PurchaseOrderRequest.ordered_at.desc()).all()
 
@@ -532,5 +575,8 @@ def export_po_archive_excel():
     return buat_file_excel(
         rows=rows,
         sheet_name='Arsip PO',
-        filename_prefix='Arsip_PO'
+        filename_prefix=(
+            f'Arsip_PO_{bulan_filter}'
+            if bulan_filter else 'Arsip_PO_Semua_Bulan'
+        )
     )

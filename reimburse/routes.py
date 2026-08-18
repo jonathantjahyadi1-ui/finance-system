@@ -126,6 +126,24 @@ def format_tanggal_excel(value, pakai_jam=False):
         return str(value)
 
 
+def get_month_range(bulan_filter):
+    """Ubah nilai YYYY-MM menjadi batas awal dan akhir bulan."""
+    if not bulan_filter:
+        return None, None
+
+    try:
+        month_start = datetime.strptime(bulan_filter, '%Y-%m')
+    except ValueError:
+        return None, None
+
+    if month_start.month == 12:
+        month_end = datetime(month_start.year + 1, 1, 1)
+    else:
+        month_end = datetime(month_start.year, month_start.month + 1, 1)
+
+    return month_start, month_end
+
+
 def buat_file_excel(rows, sheet_name, filename_prefix):
     df = pd.DataFrame(rows)
 
@@ -250,12 +268,24 @@ def archive():
 
     now = datetime.utcnow()
     cutoff = now - timedelta(days=7)
+    bulan_filter = request.args.get('bulan', '').strip()
+    month_start, month_end = get_month_range(bulan_filter)
+
+    if bulan_filter and month_start is None:
+        flash('Format bulan tidak valid.', 'danger')
+        return redirect(url_for('reimburse.archive'))
 
     # Basis query: semua yang sudah dibayar & lewat 7 hari
     query = ReimburseRequest.query.filter(
         ReimburseRequest.paid_at != None,
         ReimburseRequest.paid_at < cutoff
     )
+
+    if month_start:
+        query = query.filter(
+            ReimburseRequest.paid_at >= month_start,
+            ReimburseRequest.paid_at < month_end
+        )
 
     # Batasi akses: karyawan hanya lihat punya sendiri
     if user.role not in ['admin', 'direktur', 'accounting']:
@@ -267,7 +297,8 @@ def archive():
         'reimburse/archive.html',
         data=data,
         user=user,
-        get_user=get_user
+        get_user=get_user,
+        bulan_filter=bulan_filter
     )
 
 @reimburse_bp.route('/archive/export_excel')
@@ -286,6 +317,12 @@ def export_archive_excel():
 
     now = datetime.utcnow()
     cutoff = now - timedelta(days=7)
+    bulan_filter = request.args.get('bulan', '').strip()
+    month_start, month_end = get_month_range(bulan_filter)
+
+    if bulan_filter and month_start is None:
+        flash('Format bulan tidak valid.', 'danger')
+        return redirect(url_for('reimburse.archive'))
 
     query = db.session.query(ReimburseRequest, User).join(
         User, ReimburseRequest.user_id == User.id
@@ -293,6 +330,12 @@ def export_archive_excel():
         ReimburseRequest.paid_at != None,
         ReimburseRequest.paid_at < cutoff
     )
+
+    if month_start:
+        query = query.filter(
+            ReimburseRequest.paid_at >= month_start,
+            ReimburseRequest.paid_at < month_end
+        )
 
     reimbursements = query.order_by(ReimburseRequest.paid_at.desc()).all()
 
@@ -336,7 +379,10 @@ def export_archive_excel():
     return buat_file_excel(
         rows=rows,
         sheet_name='Arsip Reimburse',
-        filename_prefix='Arsip_Reimburse'
+        filename_prefix=(
+            f'Arsip_Reimburse_{bulan_filter}'
+            if bulan_filter else 'Arsip_Reimburse_Semua_Bulan'
+        )
     )
 
 @reimburse_bp.route('/detail/<int:id>', methods=['GET', 'POST'])
