@@ -81,11 +81,11 @@ with app.app_context():
         ))
 
     # ACCOUNTING
-    if not User.query.filter_by(username="aul").first():
+    if not User.query.filter_by(username="Aldo").first():
         db.session.add(User(
-            username="aul",
-            nama_lengkap="aul",
-            password=generate_password_hash("aul@accounting"),
+            username="Aldo",
+            nama_lengkap="Aldo",
+            password=generate_password_hash("Aldo@accounting"),
             role="accounting",
             divisi="Accounting"
         ))
