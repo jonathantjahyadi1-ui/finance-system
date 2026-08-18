@@ -270,13 +270,18 @@ def archive():
     cutoff = now - timedelta(days=7)
     bulan_filter = request.args.get('bulan', '').strip()
     month_start, month_end = get_month_range(bulan_filter)
+    page = request.args.get('page', 1, type=int)
+    page = max(page or 1, 1)
+    per_page = 50
 
     if bulan_filter and month_start is None:
         flash('Format bulan tidak valid.', 'danger')
         return redirect(url_for('reimburse.archive'))
 
-    # Basis query: semua yang sudah dibayar & lewat 7 hari
-    query = ReimburseRequest.query.filter(
+    # Ambil data reimburse dan user sekaligus agar tidak terjadi N+1 query.
+    query = db.session.query(ReimburseRequest, User).join(
+        User, ReimburseRequest.user_id == User.id
+    ).filter(
         ReimburseRequest.paid_at != None,
         ReimburseRequest.paid_at < cutoff
     )
@@ -291,14 +296,35 @@ def archive():
     if user.role not in ['admin', 'direktur', 'accounting']:
         query = query.filter(ReimburseRequest.user_id == user.id)
 
-    data = query.order_by(ReimburseRequest.paid_at.desc()).all()
+    total_data = query.count()
+    total_pages = max(1, (total_data + per_page - 1) // per_page)
+    page = min(page, total_pages)
+
+    data = query.order_by(
+        ReimburseRequest.paid_at.desc()
+    ).offset(
+        (page - 1) * per_page
+    ).limit(
+        per_page
+    ).all()
+
+    start_item = ((page - 1) * per_page + 1) if total_data else 0
+    end_item = min(page * per_page, total_data)
+    page_start = max(1, page - 2)
+    page_end = min(total_pages, page + 2)
 
     return render_template(
         'reimburse/archive.html',
         data=data,
         user=user,
-        get_user=get_user,
-        bulan_filter=bulan_filter
+        bulan_filter=bulan_filter,
+        page=page,
+        total_pages=total_pages,
+        total_data=total_data,
+        start_item=start_item,
+        end_item=end_item,
+        page_start=page_start,
+        page_end=page_end
     )
 
 @reimburse_bp.route('/archive/export_excel')
