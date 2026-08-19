@@ -82,7 +82,7 @@ with app.app_context():
 
     # ACCOUNTING: migrasikan akun lama tanpa memutus riwayat transaksi.
     accounting_users = User.query.filter(
-        db.func.lower(User.username).in_(["aul", "aldo"]),
+        db.func.lower(User.username).in_(["Muh Aldo Januar"]),
         User.role == "accounting"
     ).order_by(User.id.asc()).all()
 
@@ -112,8 +112,8 @@ with app.app_context():
             db.session.delete(duplicate_user)
 
         db.session.flush()
-        accounting_user.username = "Aldo"
-        accounting_user.nama_lengkap = "Aldo"
+        accounting_user.username = "Muh Aldo Januar"
+        accounting_user.nama_lengkap = "Muh Aldo Januar"
         accounting_user.password = generate_password_hash("Aldo@accounting")
         accounting_user.role = "accounting"
         accounting_user.divisi = "Accounting"
