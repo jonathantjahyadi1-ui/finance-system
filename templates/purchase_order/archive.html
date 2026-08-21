@@ -1,123 +1,117 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Arsip Purchase Order</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+{% extends "base.html" %}
+{% from "_macros.html" import money, po_status %}
 
-    <style>
-        body {
-            background: #f8fafc;
-            padding-top: 56px;
-        }
+{% block title %}Arsip Purchase Order | Finance System{% endblock %}
 
-        .navbar {
-            position: fixed;
-            top: 0;
-            width: 100%;
-            z-index: 1000;
-        }
+{% block content %}
+    {% set archive_count = data|length %}
+    {% set archive_value = data|sum(attribute='total_amount') %}
 
-        .card {
-            border-radius: 8px;
-        }
-    </style>
-</head>
-<body>
-
-<nav class="navbar navbar-dark bg-primary px-4">
-    <a href="/purchase-order/list" class="btn btn-light btn-sm">Kembali</a>
-
-    <span class="navbar-brand ms-2">Arsip Purchase Order</span>
-    
-    <div class="ms-auto text-white">
-        {{ user.username }} ({{ user.role }})
-        <a href="/logout" class="btn btn-sm btn-light ms-3">Logout</a>
-    </div>
-</nav>
-
-<div class="container mt-4">
-    <div class="card p-4">
-        <h4 class="mb-3">Arsip Purchase Order</h4>
-
-        <form method="GET" action="{{ url_for('purchase_order.archive_po') }}" class="row g-2 align-items-end mb-4">
-            <div class="col-md-4">
-                <label for="bulan" class="form-label fw-semibold">Filter bulan pemesanan</label>
-                <input
-                    type="month"
-                    id="bulan"
-                    name="bulan"
-                    class="form-control"
-                    value="{{ bulan_filter }}"
-                >
-            </div>
-            <div class="col-auto">
-                <button type="submit" class="btn btn-primary">Tampilkan</button>
-            </div>
-            <div class="col-auto">
-                <a href="{{ url_for('purchase_order.archive_po') }}" class="btn btn-outline-secondary">
-                    Reset
-                </a>
-            </div>
-            {% if user.role in ['admin', 'direktur', 'accounting'] %}
-            <div class="col-md-auto ms-md-auto">
-                <a
-                    href="{{ url_for('purchase_order.export_po_archive_excel', bulan=bulan_filter) }}"
-                    class="btn btn-success"
-                >
-                    Export Excel
-                </a>
-            </div>
-            {% endif %}
-        </form>
-
-        {% if bulan_filter %}
-        <div class="alert alert-info py-2">
-            Menampilkan arsip pemesanan bulan {{ bulan_filter }}.
+    <section class="page-heading">
+        <div class="page-heading-copy">
+            <p class="page-eyebrow">Riwayat Purchase Order</p>
+            <h1>Arsip purchase order</h1>
+            <p>Purchase order yang sudah dipesan lebih dari tujuh hari tersimpan otomatis di sini.</p>
         </div>
-        {% endif %}
+        <div class="page-actions">
+            {% if user.role in ['admin', 'direktur', 'accounting'] %}
+                <a class="btn btn-success" href="{{ url_for('purchase_order.export_po_archive_excel', bulan=bulan_filter) }}">
+                    <i class="bi bi-file-earmark-excel"></i> Download Excel
+                </a>
+            {% endif %}
+            <a class="btn btn-outline-secondary" href="{{ url_for('purchase_order.list_po') }}">
+                <i class="bi bi-arrow-left"></i> Pengajuan aktif
+            </a>
+        </div>
+    </section>
+
+    <section class="metric-grid" aria-label="Ringkasan arsip purchase order">
+        <article class="metric-card">
+            <span class="metric-icon indigo"><i class="bi bi-archive"></i></span>
+            <span class="metric-copy"><small>Total Arsip</small><strong>{{ archive_count }}</strong></span>
+        </article>
+        <article class="metric-card">
+            <span class="metric-icon green"><i class="bi bi-calendar-check"></i></span>
+            <span class="metric-copy"><small>Periode</small><strong>{{ bulan_filter if bulan_filter else 'Semua' }}</strong></span>
+        </article>
+        <article class="metric-card">
+            <span class="metric-icon purple"><i class="bi bi-cash-stack"></i></span>
+            <span class="metric-copy"><small>Total Nominal</small><strong>{{ money(archive_value) }}</strong></span>
+        </article>
+        <article class="metric-card">
+            <span class="metric-icon orange"><i class="bi bi-bag-check"></i></span>
+            <span class="metric-copy"><small>Status</small><strong>Selesai</strong></span>
+        </article>
+    </section>
+
+    <form class="filter-panel" method="GET" action="{{ url_for('purchase_order.archive_po') }}">
+        <div class="filter-grid filter-grid-month">
+            <div>
+                <label class="form-label" for="bulan">Bulan pemesanan</label>
+                <input class="form-control" id="bulan" name="bulan" type="month" value="{{ bulan_filter }}">
+            </div>
+            <div class="filter-actions">
+                <a class="btn btn-outline-secondary" href="{{ url_for('purchase_order.archive_po') }}">Reset</a>
+                <button class="btn btn-primary" type="submit"><i class="bi bi-funnel"></i> Tampilkan</button>
+            </div>
+        </div>
+    </form>
+
+    <section class="table-card">
+        <div class="table-card-header">
+            <div>
+                <h2 class="table-card-title">Riwayat pemesanan</h2>
+                <p class="table-card-subtitle">{{ 'Periode ' ~ bulan_filter if bulan_filter else 'Seluruh periode pemesanan' }}</p>
+            </div>
+            <span class="status-pill status-neutral">{{ archive_count }} data</span>
+        </div>
 
         <div class="table-responsive">
-        <table class="table align-middle">
-            <thead>
-                <tr>
-                    <th>Pengaju</th>
-                    <th>Tanggal Pengajuan</th>
-                    <th>Tanggal Dipesan</th>
-                    <th>Total</th>
-                    <th>Status</th>
-                    <th>Detail</th>
-                </tr>
-            </thead>
-
-            <tbody>
-                {% for po in data %}
-                {% set pengaju = get_user(po.user_id) %}
-                <tr>
-                    <td>{{ pengaju.username if pengaju else '-' }}</td>
-                    <td>{{ po.created_at.strftime('%d/%m/%Y') if po.created_at else '-' }}</td>
-                    <td>{{ po.ordered_at.strftime('%d/%m/%Y') if po.ordered_at else '-' }}</td>
-                    <td>Rp {{ "{:,.0f}".format(po.total_amount) }}</td>
-                    <td>
-                        <span class="badge bg-success">Sudah Dipesan</span>
-                    </td>
-                    <td>
-                        <a href="/purchase-order/detail/{{ po.id }}" class="btn btn-sm btn-outline-primary">
-                            Lihat
-                        </a>
-                    </td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="6" class="text-center text-muted">
-                        Belum ada data arsip Purchase Order.
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+            <table class="table finance-table align-middle">
+                <thead>
+                    <tr>
+                        <th>Pengaju</th>
+                        <th>Tanggal Pengajuan</th>
+                        <th>Tanggal Dipesan</th>
+                        <th>Total</th>
+                        <th>Status</th>
+                        <th class="text-end">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for po in data %}
+                        {% set pengaju = get_user(po.user_id) %}
+                        <tr>
+                            <td>
+                                <div class="table-person">
+                                    <span class="table-avatar">{{ (pengaju.username if pengaju else 'U')[0]|upper }}</span>
+                                    <span class="table-person-copy">
+                                        <strong>{{ pengaju.username if pengaju else '-' }}</strong>
+                                        <small>{{ pengaju.divisi if pengaju and pengaju.divisi else 'Divisi tidak tersedia' }}</small>
+                                    </span>
+                                </div>
+                            </td>
+                            <td>{{ po.created_at.strftime('%d/%m/%Y') if po.created_at else '-' }}</td>
+                            <td>{{ po.ordered_at.strftime('%d/%m/%Y') if po.ordered_at else '-' }}</td>
+                            <td class="amount">{{ money(po.total_amount) }}</td>
+                            <td>{{ po_status(po.status) }}</td>
+                            <td class="text-end">
+                                <a class="btn btn-outline-primary btn-sm" href="{{ url_for('purchase_order.detail_po', id=po.id) }}">
+                                    Detail <i class="bi bi-arrow-right"></i>
+                                </a>
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td class="empty-state" colspan="6">
+                                <span class="empty-state-icon"><i class="bi bi-archive"></i></span>
+                                <strong>Tidak ada arsip pada periode ini</strong>
+                                <span>Pilih bulan lain atau reset filter untuk melihat semua data.</span>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
-    </div>
-</div>
-
-</body>
-</html>
+    </section>
+{% endblock %}

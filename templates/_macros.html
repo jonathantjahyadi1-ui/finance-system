@@ -1,0 +1,31 @@
+{% macro money(value) -%}
+Rp {{ "{:,.0f}".format(value or 0)|replace(',', '.') }}
+{%- endmacro %}
+
+{% macro reimburse_status(status) -%}
+    {% if status == 'submitted' %}
+        <span class="status-pill status-warning"><i class="bi bi-clock"></i> Menunggu Pembayaran</span>
+    {% elif status == 'paid' %}
+        <span class="status-pill status-success"><i class="bi bi-check-circle"></i> Dibayar</span>
+    {% else %}
+        <span class="status-pill status-neutral"><i class="bi bi-circle"></i> {{ status|replace('_', ' ')|title }}</span>
+    {% endif %}
+{%- endmacro %}
+
+{% macro po_status(status) -%}
+    {% if status == 'submitted' %}
+        <span class="status-pill status-warning"><i class="bi bi-clock"></i> Menunggu Accounting</span>
+    {% elif status == 'accounting_approved' %}
+        <span class="status-pill status-info"><i class="bi bi-check2"></i> Disetujui Accounting</span>
+    {% elif status == 'accounting_rejected' %}
+        <span class="status-pill status-danger"><i class="bi bi-x-circle"></i> Ditolak Accounting</span>
+    {% elif status == 'director_approved' %}
+        <span class="status-pill status-purple"><i class="bi bi-check2-all"></i> Disetujui Direktur</span>
+    {% elif status == 'director_rejected' %}
+        <span class="status-pill status-danger"><i class="bi bi-x-circle"></i> Ditolak Direktur</span>
+    {% elif status == 'ordered' %}
+        <span class="status-pill status-success"><i class="bi bi-bag-check"></i> Sudah Dipesan</span>
+    {% else %}
+        <span class="status-pill status-neutral"><i class="bi bi-circle"></i> {{ status|replace('_', ' ')|title }}</span>
+    {% endif %}
+{%- endmacro %}

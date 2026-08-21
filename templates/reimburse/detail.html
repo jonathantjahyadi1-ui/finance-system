@@ -1,74 +1,52 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Detail Reimburse</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% extends "base.html" %}
+{% from "_macros.html" import money, reimburse_status %}
 
-    <style>
-        * { font-family: 'Poppins', sans-serif; }
+{% block title %}Detail Reimburse #{{ reimb.id }} | Finance System{% endblock %}
 
-        body {
-            background: #f8fafc;
-            padding-top: 56px;
-        }
+{% block content %}
+    {% set pengaju = get_user(reimb.user_id) %}
 
-        :root {
-            --primary: #5b86e5;
-            --secondary: #36d1dc;
-        }
+    <section class="page-heading">
+        <div class="page-heading-copy">
+            <p class="page-eyebrow">Detail Reimburse</p>
+            <h1>Pengajuan #{{ reimb.id }}</h1>
+            <p>Periksa rincian item, nota pendukung, status, dan bukti pembayaran.</p>
+        </div>
+        <div class="page-actions">
+            <a class="btn btn-outline-secondary" href="{{ url_for('reimburse.list_reimburse') }}">
+                <i class="bi bi-arrow-left"></i> Kembali
+            </a>
+        </div>
+    </section>
 
-        .navbar {
-            position: fixed;
-            top: 0;
-            width: 100%;
-            z-index: 1000;
-            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%) !important;
-        }
+    <div class="detail-grid">
+        <section class="detail-card">
+            <div class="section-heading">
+                <div>
+                    <h2>Rincian pengajuan</h2>
+                    <p>Informasi pengaju dan seluruh biaya yang diajukan.</p>
+                </div>
+                {{ reimburse_status(reimb.status) }}
+            </div>
 
-        .card {
-            border-radius: 12px;
-            border: none;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-        }
+            <div class="detail-meta-grid">
+                <div class="detail-meta">
+                    <small>Pengaju</small>
+                    <strong>{{ pengaju.username if pengaju else '-' }}</strong>
+                </div>
+                <div class="detail-meta">
+                    <small>Divisi</small>
+                    <strong>{{ pengaju.divisi if pengaju and pengaju.divisi else '-' }}</strong>
+                </div>
+                <div class="detail-meta">
+                    <small>Tanggal pengajuan</small>
+                    <strong>{{ reimb.created_at.strftime('%d/%m/%Y') if reimb.created_at else '-' }}</strong>
+                </div>
+            </div>
 
-        .nota-img {
-            max-height: 120px;
-            border-radius: 8px;
-            border: 1px solid #e5e7eb;
-        }
-    </style>
-</head>
-
-<body>
-
-<nav class="navbar navbar-dark px-4">
-    <a href="/reimburse/list" class="btn btn-light btn-sm">
-        <i class="bi bi-arrow-left"></i> Kembali
-    </a>
-
-    <span class="navbar-brand ms-2">
-        Detail Reimburse #{{ reimb.id }}
-    </span>
-
-    <div class="ms-auto text-white">
-        {{ user.username }} ({{ user.role }})
-        <a href="/logout" class="btn btn-sm btn-light ms-3">Logout</a>
-    </div>
-</nav>
-
-<div class="container mt-5 pt-3">
-
-    <div class="row">
-
-        <div class="col-md-8">
-
-            <div class="card p-4 mb-4">
-                <h5>Rincian Reimburse</h5>
-
-                <table class="table table-bordered align-middle">
-                    <thead class="table-light">
+            <div class="table-responsive">
+                <table class="table finance-table align-middle">
+                    <thead>
                         <tr>
                             <th>Item</th>
                             <th>Harga</th>
@@ -77,90 +55,81 @@
                             <th>Nota</th>
                         </tr>
                     </thead>
-
                     <tbody>
                         {% for item in reimb.items %}
-                        <tr>
-                            <td>{{ item.item_name }}</td>
-
-                            <td>
-                                Rp {{ "{:,.0f}".format(item.price) }}
-                            </td>
-
-                            <td>{{ item.qty }}</td>
-
-                            <td>
-                                Rp {{ "{:,.0f}".format(item.price * item.qty) }}
-                            </td>
-
-                            <td>
-                                {% if item.receipt_photo %}
-    <a href="{{ reimburse_file_url(item.receipt_photo) }}" target="_blank">
-        <img src="{{ reimburse_file_url(item.receipt_photo) }}" class="nota-img">
-    </a>
-{% elif reimb.receipt_photo %}
-    <a href="{{ reimburse_file_url(reimb.receipt_photo) }}" target="_blank">
-        <img src="{{ reimburse_file_url(reimb.receipt_photo) }}" class="nota-img">
-    </a>
-{% else %}
-    <span class="text-muted">Tidak ada nota</span>
-{% endif %}
-                            </td>
-                        </tr>
+                            <tr>
+                                <td><strong>{{ item.item_name }}</strong></td>
+                                <td>{{ money(item.price) }}</td>
+                                <td>{{ item.qty }}</td>
+                                <td class="amount">{{ money(item.price * item.qty) }}</td>
+                                <td>
+                                    {% if item.receipt_photo %}
+                                        <a href="{{ reimburse_file_url(item.receipt_photo) }}" target="_blank" rel="noopener" title="Buka nota">
+                                            <img class="receipt-thumb" src="{{ reimburse_file_url(item.receipt_photo) }}" alt="Nota {{ item.item_name }}">
+                                        </a>
+                                    {% elif reimb.receipt_photo %}
+                                        <a href="{{ reimburse_file_url(reimb.receipt_photo) }}" target="_blank" rel="noopener" title="Buka nota lama">
+                                            <img class="receipt-thumb" src="{{ reimburse_file_url(reimb.receipt_photo) }}" alt="Nota reimburse">
+                                        </a>
+                                    {% else %}
+                                        <span class="text-muted">Tidak ada</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% else %}
+                            <tr><td colspan="5" class="empty-state"><strong>Tidak ada rincian item</strong></td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
-
-                <h4 class="text-end">
-                    Total: Rp {{ "{:,.0f}".format(reimb.total_amount) }}
-                </h4>
             </div>
 
-        </div>
+            <div class="detail-total">
+                <span>Total reimburse</span>
+                <strong>{{ money(reimb.total_amount) }}</strong>
+            </div>
+        </section>
 
-        <div class="col-md-4">
+        <aside class="detail-stack">
+            <section class="detail-card">
+                <div class="section-heading">
+                    <div>
+                        <h2>Status pembayaran</h2>
+                        <p>Informasi pembayaran pengajuan ini.</p>
+                    </div>
+                </div>
 
-            <div class="card p-4">
-                <h5>Status</h5>
+                <div class="mb-3">{{ reimburse_status(reimb.status) }}</div>
 
-                {% if reimb.status == 'submitted' %}
-                    <span class="badge bg-warning text-dark">Menunggu Pembayaran</span>
-                {% else %}
-                    <span class="badge bg-success">Dibayar</span>
-
-                    {% if reimb.paid_at %}
-                        <p class="mt-2">
-                            <small>Dibayar pada {{ reimb.paid_at.strftime('%d/%m/%Y %H:%M') }}</small>
-                        </p>
-                    {% endif %}
+                {% if reimb.paid_at %}
+                    <div class="detail-meta mb-3">
+                        <small>Dibayar pada</small>
+                        <strong>{{ reimb.paid_at.strftime('%d/%m/%Y %H:%M') }}</strong>
+                    </div>
                 {% endif %}
 
                 {% if reimb.payment_proof %}
-                    <hr>
-
-                    <h6>Bukti Pembayaran</h6>
-
-                    <a href="{{ reimburse_file_url(reimb.payment_proof) }}" target="_blank">
-    <img src="{{ reimburse_file_url(reimb.payment_proof) }}" class="img-fluid rounded">
-</a>
-
+                    <a class="proof-preview" href="{{ reimburse_file_url(reimb.payment_proof) }}" target="_blank" rel="noopener">
+                        <img src="{{ reimburse_file_url(reimb.payment_proof) }}" alt="Bukti pembayaran reimburse #{{ reimb.id }}">
+                    </a>
+                    <a class="btn btn-outline-primary w-100 mt-3" href="{{ reimburse_file_url(reimb.payment_proof) }}" target="_blank" rel="noopener">
+                        <i class="bi bi-arrows-fullscreen"></i> Buka bukti pembayaran
+                    </a>
                 {% elif user.role == 'direktur' %}
-                    <hr>
-
-                    <h6>Upload Bukti Pembayaran</h6>
-
-                    <form method="POST" enctype="multipart/form-data">
-                        <input type="file" name="payment_proof" required class="form-control mb-2">
-                        <button class="btn btn-success w-100">Upload</button>
+                    <form method="POST" enctype="multipart/form-data" data-loading-form>
+                        <label class="form-label" for="payment_proof">Upload bukti pembayaran</label>
+                        <input class="form-control mb-2" id="payment_proof" name="payment_proof" type="file" accept="image/jpeg,image/png" required>
+                        <span class="field-help mb-3">Format yang didukung: JPG, JPEG, atau PNG.</span>
+                        <button class="btn btn-success w-100" type="submit">
+                            <i class="bi bi-cloud-arrow-up"></i> Upload & tandai dibayar
+                        </button>
                     </form>
+                {% else %}
+                    <div class="notice-card mb-0">
+                        <span class="notice-icon"><i class="bi bi-hourglass-split"></i></span>
+                        <div><strong>Menunggu pembayaran</strong><p>Bukti pembayaran akan tampil setelah diunggah oleh Direktur.</p></div>
+                    </div>
                 {% endif %}
-            </div>
-
-        </div>
-
+            </section>
+        </aside>
     </div>
-
-</div>
-
-</body>
-</html>
+{% endblock %}

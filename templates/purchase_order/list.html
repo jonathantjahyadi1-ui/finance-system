@@ -1,175 +1,136 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Purchase Order</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+{% extends "base.html" %}
+{% from "_macros.html" import money, po_status %}
 
-    <style>
-        body {
-            background: #f8fafc;
-            padding-top: 56px;
-        }
+{% block title %}Purchase Order Aktif | Finance System{% endblock %}
 
-        .navbar {
-            position: fixed;
-            top: 0;
-            width: 100%;
-            z-index: 1000;
-        }
+{% block content %}
+    {% set total_count = data|length %}
+    {% set pending_count = data|selectattr('status', 'equalto', 'submitted')|list|length %}
+    {% set accounting_count = data|selectattr('status', 'equalto', 'accounting_approved')|list|length %}
+    {% set director_count = data|selectattr('status', 'equalto', 'director_approved')|list|length %}
+    {% set ordered_count = data|selectattr('status', 'equalto', 'ordered')|list|length %}
+    {% set total_value = data|sum(attribute='total_amount') %}
 
-        #sidebar {
-            position: fixed;
-            top: 56px;
-            left: -250px;
-            width: 250px;
-            height: calc(100vh - 56px);
-            background: white;
-            transition: 0.3s;
-            z-index: 999;
-            box-shadow: 2px 0 8px rgba(0,0,0,0.08);
-        }
-
-        #sidebar.active {
-            left: 0;
-        }
-
-        #sidebar a {
-            display: block;
-            padding: 12px 20px;
-            color: #1f2937;
-            text-decoration: none;
-            border-left: 4px solid transparent;
-        }
-
-        #sidebar a:hover {
-            background: #f9fafb;
-            border-left-color: #0d6efd;
-        }
-
-        #mainContent {
-            transition: 0.3s;
-        }
-
-        #mainContent.shift {
-            margin-left: 250px;
-        }
-    </style>
-</head>
-
-<body>
-<nav class="navbar navbar-dark bg-primary px-4">
-    <button class="btn btn-light btn-sm me-2" onclick="toggleSidebar()">☰</button>
-
-    <span class="navbar-brand">📦 Purchase Order</span>
-
-    <div class="ms-auto text-white">
-        {{ user.username }} ({{ user.role }})
-        <a href="/logout" class="btn btn-sm btn-light ms-3">Logout</a>
-    </div>
-</nav>
-
-<div id="sidebar">
-    <a href="/purchase-order/list">Daftar Purchase Order</a>
-    <a href="/purchase-order/submit">Ajukan Purchase Order</a>
-    <a href="/change_system">Ganti Sistem</a>
-    <a href="/purchase-order/archive">Arsip Purchase Order</a>
-</div>
-
-<div id="mainContent" class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h4>Daftar Purchase Order</h4>
-
-        <div>
-            {% if user.role in ['admin', 'direktur', 'accounting'] %}
-            <a href="{{ url_for('purchase_order.export_po_excel', status=status_filter, nama=nama_filter) }}" class="btn btn-success">
-                Export Excel
-            </a>
-            {% endif %}
-
-            <a href="/purchase-order/submit" class="btn btn-primary">+ Ajukan PO</a>
+    <section class="page-heading">
+        <div class="page-heading-copy">
+            <p class="page-eyebrow">Purchase Order</p>
+            <h1>Pengajuan pembelian</h1>
+            <p>Pantau kebutuhan barang dari pengajuan awal hingga bukti pemesanan diterima.</p>
         </div>
-    </div>
+        <div class="page-actions">
+            {% if user.role in ['admin', 'direktur', 'accounting'] %}
+                <a class="btn btn-outline-secondary" href="{{ url_for('purchase_order.export_po_excel', status=status_filter, nama=nama_filter) }}">
+                    <i class="bi bi-file-earmark-excel"></i> Export Excel
+                </a>
+            {% endif %}
+            <a class="btn btn-primary" href="{{ url_for('purchase_order.submit_po') }}">
+                <i class="bi bi-plus-lg"></i> Ajukan PO
+            </a>
+        </div>
+    </section>
+
+    <section class="metric-grid" aria-label="Ringkasan purchase order">
+        <article class="metric-card">
+            <span class="metric-icon indigo"><i class="bi bi-files"></i></span>
+            <span class="metric-copy"><small>Total Aktif</small><strong>{{ total_count }}</strong></span>
+        </article>
+        <article class="metric-card">
+            <span class="metric-icon orange"><i class="bi bi-hourglass-split"></i></span>
+            <span class="metric-copy"><small>Menunggu Accounting</small><strong>{{ pending_count }}</strong></span>
+        </article>
+        <article class="metric-card">
+            <span class="metric-icon green"><i class="bi bi-bag-check"></i></span>
+            <span class="metric-copy"><small>Sudah Dipesan</small><strong>{{ ordered_count }}</strong></span>
+        </article>
+        <article class="metric-card">
+            <span class="metric-icon purple"><i class="bi bi-cash-stack"></i></span>
+            <span class="metric-copy"><small>Total Estimasi</small><strong>{{ money(total_value) }}</strong></span>
+        </article>
+    </section>
 
     {% if user.role in ['admin', 'direktur', 'accounting'] %}
-    <form method="GET" class="card card-body mb-3">
-        <div class="row g-2">
-            <div class="col-md-4">
-                <input type="text" name="nama" class="form-control" placeholder="Cari nama pengaju" value="{{ nama_filter }}">
+        <form class="filter-panel" method="GET" action="{{ url_for('purchase_order.list_po') }}">
+            <div class="filter-grid">
+                <div>
+                    <label class="form-label" for="nama">Cari pengaju</label>
+                    <div class="input-icon">
+                        <i class="bi bi-search"></i>
+                        <input class="form-control" id="nama" name="nama" type="search" value="{{ nama_filter }}" placeholder="Ketik nama pengaju">
+                    </div>
+                </div>
+                <div>
+                    <label class="form-label" for="status">Status pengajuan</label>
+                    <select class="form-select" id="status" name="status">
+                        <option value="">Semua status</option>
+                        <option value="submitted" {% if status_filter == 'submitted' %}selected{% endif %}>Menunggu Accounting</option>
+                        <option value="accounting_approved" {% if status_filter == 'accounting_approved' %}selected{% endif %}>Disetujui Accounting</option>
+                        <option value="accounting_rejected" {% if status_filter == 'accounting_rejected' %}selected{% endif %}>Ditolak Accounting</option>
+                        <option value="director_approved" {% if status_filter == 'director_approved' %}selected{% endif %}>Disetujui Direktur</option>
+                        <option value="director_rejected" {% if status_filter == 'director_rejected' %}selected{% endif %}>Ditolak Direktur</option>
+                        <option value="ordered" {% if status_filter == 'ordered' %}selected{% endif %}>Sudah Dipesan</option>
+                    </select>
+                </div>
+                <div class="filter-actions">
+                    <a class="btn btn-outline-secondary" href="{{ url_for('purchase_order.list_po') }}">Reset</a>
+                    <button class="btn btn-primary" type="submit"><i class="bi bi-funnel"></i> Terapkan</button>
+                </div>
             </div>
-
-            <div class="col-md-4">
-                <select name="status" class="form-select">
-    <option value="">Semua Status</option>
-    <option value="submitted" {% if status_filter == 'submitted' %}selected{% endif %}>
-        Menunggu Accounting
-    </option>
-    <option value="accounting_approved" {% if status_filter == 'accounting_approved' %}selected{% endif %}>
-        Disetujui Accounting
-    </option>
-    <option value="accounting_rejected" {% if status_filter == 'accounting_rejected' %}selected{% endif %}>
-        Ditolak Accounting
-    </option>
-    <option value="director_approved" {% if status_filter == 'director_approved' %}selected{% endif %}>
-        Disetujui Direktur
-    </option>
-    <option value="director_rejected" {% if status_filter == 'director_rejected' %}selected{% endif %}>
-        Ditolak Direktur
-    </option>
-    <option value="ordered" {% if status_filter == 'ordered' %}selected{% endif %}>
-        Sudah Dipesan
-    </option>
-</select>
-            </div>
-
-            <div class="col-md-2">
-                <button class="btn btn-primary w-100">Filter</button>
-            </div>
-
-            <div class="col-md-2">
-                <a href="/purchase-order/list" class="btn btn-secondary w-100">Reset</a>
-            </div>
-        </div>
-    </form>
+        </form>
     {% endif %}
 
-    <div class="card p-3">
-        <table class="table">
-            <thead>
-                <tr>
-                    <th>Pengaju</th>
-                    <th>Tanggal</th>
-                    <th>Total Estimasi</th>
-                    <th>Status</th>
-                    <th>Detail</th>
-                </tr>
-            </thead>
+    <section class="table-card">
+        <div class="table-card-header">
+            <div>
+                <h2 class="table-card-title">Daftar purchase order</h2>
+                <p class="table-card-subtitle">{{ accounting_count + director_count }} pengajuan sedang berada dalam tahap persetujuan.</p>
+            </div>
+            <span class="status-pill status-neutral">{{ total_count }} data</span>
+        </div>
 
-            <tbody>
-                {% for po in data %}
-                {% set pengaju = get_user(po.user_id) %}
-                <tr>
-                    <td>{{ pengaju.username if pengaju else '-' }}</td>
-                    <td>{{ po.created_at.strftime('%d/%m/%Y') }}</td>
-                    <td>Rp {{ "{:,.0f}".format(po.total_amount) }}</td>
-                    <td>{{ po.status }}</td>
-                    <td>
-                        <a href="/purchase-order/detail/{{ po.id }}" class="btn btn-sm btn-outline-primary">
-                            Lihat
-                        </a>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-
-<script>
-function toggleSidebar() {
-    document.getElementById("sidebar").classList.toggle("active");
-    document.getElementById("mainContent").classList.toggle("shift");
-}
-</script>
-
-</body>
-</html>
+        <div class="table-responsive">
+            <table class="table finance-table align-middle">
+                <thead>
+                    <tr>
+                        <th>Pengaju</th>
+                        <th>Tanggal</th>
+                        <th>Total Estimasi</th>
+                        <th>Status</th>
+                        <th class="text-end">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for po in data %}
+                        {% set pengaju = get_user(po.user_id) %}
+                        <tr>
+                            <td>
+                                <div class="table-person">
+                                    <span class="table-avatar">{{ (pengaju.username if pengaju else 'U')[0]|upper }}</span>
+                                    <span class="table-person-copy">
+                                        <strong>{{ pengaju.username if pengaju else '-' }}</strong>
+                                        <small>{{ pengaju.divisi if pengaju and pengaju.divisi else 'Divisi tidak tersedia' }}</small>
+                                    </span>
+                                </div>
+                            </td>
+                            <td>{{ po.created_at.strftime('%d/%m/%Y') if po.created_at else '-' }}</td>
+                            <td class="amount">{{ money(po.total_amount) }}</td>
+                            <td>{{ po_status(po.status) }}</td>
+                            <td class="text-end">
+                                <a class="btn btn-outline-primary btn-sm" href="{{ url_for('purchase_order.detail_po', id=po.id) }}">
+                                    Detail <i class="bi bi-arrow-right"></i>
+                                </a>
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td class="empty-state" colspan="5">
+                                <span class="empty-state-icon"><i class="bi bi-inbox"></i></span>
+                                <strong>Tidak ada purchase order</strong>
+                                <span>Ubah filter atau buat pengajuan baru.</span>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+{% endblock %}

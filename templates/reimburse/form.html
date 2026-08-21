@@ -1,150 +1,127 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Ajukan Reimburse</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% extends "base.html" %}
+{% from "_macros.html" import money %}
 
-    <style>
-        * { font-family: 'Poppins', sans-serif; }
+{% block title %}Ajukan Reimburse | Finance System{% endblock %}
 
-        body {
-            background: #f8fafc;
-            padding-top: 56px;
-        }
+{% block content %}
+    <div class="form-shell">
+        <section class="page-heading">
+            <div class="page-heading-copy">
+                <p class="page-eyebrow">Pengajuan Baru</p>
+                <h1>Ajukan reimburse</h1>
+                <p>Isi rincian biaya dan unggah nota yang jelas untuk mempercepat pemeriksaan.</p>
+            </div>
+            <div class="page-actions">
+                <a class="btn btn-outline-secondary" href="{{ url_for('reimburse.list_reimburse') }}">
+                    <i class="bi bi-arrow-left"></i> Kembali
+                </a>
+            </div>
+        </section>
 
-        :root {
-            --primary: #5b86e5;
-            --secondary: #36d1dc;
-        }
+        <section class="form-card">
+            <div class="section-heading">
+                <div>
+                    <h2>Rincian biaya</h2>
+                    <p>Tambahkan satu atau beberapa item dalam satu pengajuan.</p>
+                </div>
+            </div>
 
-        .navbar {
-            position: fixed;
-            top: 0;
-            width: 100%;
-            z-index: 1000;
-            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%) !important;
-        }
+            <div class="notice-card">
+                <span class="notice-icon"><i class="bi bi-exclamation-triangle-fill"></i></span>
+                <div>
+                    <strong>Nota wajib dipindai menggunakan CamScanner</strong>
+                    <p>Pastikan tulisan, nominal, dan tanggal pada nota terlihat jelas. Gunakan file JPG, JPEG, atau PNG.</p>
+                </div>
+            </div>
 
-        .card {
-            border-radius: 12px;
-            border: none;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-        }
-
-        .item-row {
-            background: #f9fafb;
-            border: 1px solid #e5e7eb;
-            border-radius: 10px;
-            padding: 15px;
-            margin-bottom: 15px;
-        }
-
-        .form-label {
-            font-weight: 600;
-            font-size: 0.9rem;
-        }
-    </style>
-</head>
-
-<body>
-
-<nav class="navbar navbar-dark px-4">
-    <a href="/reimburse/list" class="btn btn-light btn-sm">← Kembali</a>
-    <span class="navbar-brand ms-2">Ajukan Reimburse</span>
-</nav>
-
-<div class="container mt-5 pt-4" style="max-width: 900px;">
-    <div class="card p-4">
-        <h4 class="mb-4">Form Pengajuan Reimburse</h4>
-
-<div class="alert alert-warning d-flex align-items-start gap-2 mb-4" role="alert">
-    <i class="bi bi-exclamation-triangle-fill mt-1"></i>
-    <div>
-        <strong>Wajib Upload Nota dari CamScanner.</strong><br>
-        Pastikan setiap nota difoto/scan menggunakan CamScanner agar hasilnya jelas, rapi, dan mudah diverifikasi oleh Accounting/Direktur.
-    </div>
-</div>
-
-        <form method="POST" enctype="multipart/form-data" id="reimbForm">
-
-            <div id="itemsContainer">
-
-                <div class="item-row">
-                    <div class="row g-3 align-items-end">
-
-                        <div class="col-md-4">
-                            <label class="form-label">Nama Barang</label>
-                            <input type="text" name="item_name[]" class="form-control" placeholder="Contoh: Bensin" required>
+            <form method="POST" enctype="multipart/form-data" id="reimburseForm" data-loading-form>
+                <div id="itemsContainer">
+                    <div class="item-row" data-item-row>
+                        <div class="item-index"><span data-item-number>1</span> Item reimburse</div>
+                        <div class="row g-3 align-items-end">
+                            <div class="col-lg-4 col-md-6">
+                                <label class="form-label">Nama barang / biaya</label>
+                                <input class="form-control" name="item_name[]" type="text" placeholder="Contoh: Bensin operasional" required>
+                            </div>
+                            <div class="col-lg-2 col-md-3 col-7">
+                                <label class="form-label">Harga satuan</label>
+                                <input class="form-control" name="price[]" type="number" min="0" step="1" inputmode="numeric" placeholder="50000" required data-price>
+                            </div>
+                            <div class="col-lg-2 col-md-3 col-5">
+                                <label class="form-label">Qty</label>
+                                <input class="form-control" name="qty[]" type="number" min="1" step="1" inputmode="numeric" value="1" required data-qty>
+                            </div>
+                            <div class="col-lg-3 col-md-10">
+                                <label class="form-label">Nota CamScanner</label>
+                                <input class="form-control" name="receipt[]" type="file" accept="image/jpeg,image/png" required>
+                            </div>
+                            <div class="col-lg-1 col-md-2 d-grid">
+                                <button class="btn btn-danger-soft remove-row" type="button" aria-label="Hapus item" title="Hapus item">
+                                    <i class="bi bi-trash3"></i>
+                                </button>
+                            </div>
                         </div>
-
-                        <div class="col-md-2">
-                            <label class="form-label">Harga</label>
-                            <input type="number" name="price[]" class="form-control" placeholder="50000" min="0" required>
-                        </div>
-
-                        <div class="col-md-2">
-                            <label class="form-label">Qty</label>
-                            <input type="number" name="qty[]" class="form-control" value="1" min="1" required>
-                        </div>
-
-                        <div class="col-md-3">
-    <label class="form-label">Foto Nota <span class="text-danger">(Wajib CamScanner)</span></label>
-    <small class="text-muted d-block mb-1">
-        Upload hasil scan CamScanner, bukan foto biasa.
-    </small>
-    <input type="file" name="receipt[]" class="form-control" accept="image/*" required>
-</div>
-
-                        <div class="col-md-1">
-                            <button type="button" class="btn btn-danger w-100 remove-row">X</button>
-                        </div>
-
                     </div>
                 </div>
 
-            </div>
+                <button class="btn btn-soft" id="addRow" type="button">
+                    <i class="bi bi-plus-lg"></i> Tambah item
+                </button>
 
-            <button type="button" class="btn btn-secondary btn-sm mb-3" id="addRow">
-                + Tambah Item
-            </button>
-
-            <button class="btn btn-primary w-100">
-                Ajukan Reimburse
-            </button>
-
-        </form>
+                <div class="form-footer">
+                    <div class="form-total">
+                        <small>Estimasi total reimburse</small>
+                        <strong id="grandTotal">Rp 0</strong>
+                    </div>
+                    <button class="btn btn-primary" type="submit">
+                        <i class="bi bi-send"></i> Kirim pengajuan
+                    </button>
+                </div>
+            </form>
+        </section>
     </div>
-</div>
+{% endblock %}
 
+{% block scripts %}
 <script>
-document.getElementById('addRow').addEventListener('click', function () {
-    const container = document.getElementById('itemsContainer');
-    const firstRow = document.querySelector('.item-row');
-    const newRow = firstRow.cloneNode(true);
+(function () {
+    const container = document.getElementById("itemsContainer");
+    const addButton = document.getElementById("addRow");
+    const totalElement = document.getElementById("grandTotal");
 
-    newRow.querySelectorAll('input').forEach(input => {
-        if (input.name === 'qty[]') {
-            input.value = 1;
-        } else {
-            input.value = '';
-        }
+    function updateRows() {
+        const rows = [...container.querySelectorAll("[data-item-row]")];
+        let total = 0;
+
+        rows.forEach(function (row, index) {
+            row.querySelector("[data-item-number]").textContent = index + 1;
+            const price = Number(row.querySelector("[data-price]").value) || 0;
+            const qty = Number(row.querySelector("[data-qty]").value) || 0;
+            total += price * qty;
+            row.querySelector(".remove-row").disabled = rows.length === 1;
+        });
+
+        totalElement.textContent = "Rp " + new Intl.NumberFormat("id-ID").format(total);
+    }
+
+    addButton.addEventListener("click", function () {
+        const row = container.querySelector("[data-item-row]").cloneNode(true);
+        row.querySelectorAll("input").forEach(function (input) {
+            input.value = input.name === "qty[]" ? "1" : "";
+        });
+        container.appendChild(row);
+        updateRows();
     });
 
-    container.appendChild(newRow);
-});
+    container.addEventListener("click", function (event) {
+        const button = event.target.closest(".remove-row");
+        if (!button || container.querySelectorAll("[data-item-row]").length === 1) return;
+        button.closest("[data-item-row]").remove();
+        updateRows();
+    });
 
-document.addEventListener('click', function (e) {
-    if (e.target.classList.contains('remove-row')) {
-        const rows = document.querySelectorAll('.item-row');
-
-        if (rows.length > 1) {
-            e.target.closest('.item-row').remove();
-        }
-    }
-});
+    container.addEventListener("input", updateRows);
+    updateRows();
+})();
 </script>
-
-</body>
-</html>
+{% endblock %}
