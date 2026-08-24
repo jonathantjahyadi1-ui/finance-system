@@ -60,73 +60,125 @@ db.init_app(app)
 with app.app_context():
     db.create_all()
 
-    # ADMIN
-    if not User.query.filter_by(username="Jonathan").first():
-        db.session.add(User(
-            username="Jonathan",
-            nama_lengkap="Jonathan",
-            password=generate_password_hash("Jonathan@itsupport"),
-            role="admin",
-            divisi="IT"
-        ))
+    try:
+        # Mencegah beberapa worker Render membuat akun bersamaan.
+        db.session.execute(
+            db.text("SELECT pg_advisory_xact_lock(:lock_id)"),
+            {"lock_id": 24082026}
+        )
 
-    # DIREKTUR
-    if not User.query.filter_by(username="Martin").first():
-        db.session.add(User(
-            username="Martin",
-            nama_lengkap="Martin",
-            password=generate_password_hash("123456"),
-            role="direktur",
-            divisi="Direksi"
-        ))
+        # =========================
+        # ADMIN
+        # =========================
+        admin = User.query.filter(
+            db.func.lower(
+                db.func.trim(User.username)
+            ) == "jonathan"
+        ).first()
 
-    # ACCOUNTING: migrasikan akun lama tanpa memutus riwayat transaksi.
-    accounting_users = User.query.filter(
-        db.func.lower(User.username).in_(["Muh Aldo Januar"]),
-        User.role == "accounting"
-    ).order_by(User.id.asc()).all()
+        if not admin:
+            db.session.add(User(
+                username="Jonathan",
+                nama_lengkap="Jonathan",
+                password=generate_password_hash(
+                    "Jonathan@itsupport"
+                ),
+                role="admin",
+                divisi="IT"
+            ))
 
-    legacy_accounting = next(
-        (user for user in accounting_users if user.username.lower() == "aul"),
-        None
-    )
-    accounting_user = legacy_accounting or (
-        accounting_users[0] if accounting_users else None
-    )
+        # =========================
+        # DIREKTUR
+        # =========================
+        direktur = User.query.filter(
+            db.func.lower(
+                db.func.trim(User.username)
+            ) == "martin"
+        ).first()
 
-    if accounting_user:
-        # Jika deploy lama sempat membuat akun Aldo baru, gabungkan datanya ke
-        # akun Aul lama agar semua riwayat tetap tersimpan pada satu user ID.
-        for duplicate_user in accounting_users:
-            if duplicate_user.id == accounting_user.id:
-                continue
+        if not direktur:
+            db.session.add(User(
+                username="Martin",
+                nama_lengkap="Martin",
+                password=generate_password_hash("123456"),
+                role="direktur",
+                divisi="Direksi"
+            ))
 
-            ReimburseRequest.query.filter_by(user_id=duplicate_user.id).update(
-                {"user_id": accounting_user.id},
-                synchronize_session=False
+        # =========================
+        # ACCOUNTING
+        # =========================
+        accounting_users = User.query.filter(
+            db.func.lower(
+                db.func.trim(User.username)
+            ).in_([
+                "aldo",
+                "muh aldo januar"
+            ]),
+            db.func.lower(User.role) == "accounting"
+        ).order_by(User.id.asc()).all()
+
+        accounting_user = (
+            accounting_users[0]
+            if accounting_users
+            else None
+        )
+
+        if accounting_user:
+            username_sebelumnya = (
+                accounting_user.username.strip().lower()
             )
-            PurchaseOrderRequest.query.filter_by(user_id=duplicate_user.id).update(
-                {"user_id": accounting_user.id},
-                synchronize_session=False
-            )
-            db.session.delete(duplicate_user)
 
-        db.session.flush()
-        accounting_user.username = "Muh Aldo Januar"
-        accounting_user.nama_lengkap = "Muh Aldo Januar"
-        accounting_user.password = generate_password_hash("Aldo@accounting")
-        accounting_user.role = "accounting"
-        accounting_user.divisi = "Accounting"
-    else:
-        db.session.add(User(
-            username="Aldo",
-            nama_lengkap="Aldo",
-            password=generate_password_hash("Aldo@accounting"),
-            role="accounting",
-            divisi="Accounting"
-        ))
+            # Gabungkan akun Aldo yang terlanjur duplikat.
+            for duplicate_user in accounting_users:
+                if duplicate_user.id == accounting_user.id:
+                    continue
 
-    db.session.commit()
+                ReimburseRequest.query.filter_by(
+                    user_id=duplicate_user.id
+                ).update(
+                    {"user_id": accounting_user.id},
+                    synchronize_session=False
+                )
+
+                PurchaseOrderRequest.query.filter_by(
+                    user_id=duplicate_user.id
+                ).update(
+                    {"user_id": accounting_user.id},
+                    synchronize_session=False
+                )
+
+                db.session.delete(duplicate_user)
+
+            accounting_user.username = "Muh Aldo Januar"
+            accounting_user.nama_lengkap = "Muh Aldo Januar"
+            accounting_user.role = "accounting"
+            accounting_user.divisi = "Accounting"
+
+            # Ganti password satu kali jika sebelumnya bernama Aldo.
+            if username_sebelumnya == "aldo":
+                accounting_user.password = (
+                    generate_password_hash(
+                        "Aldo@accounting"
+                    )
+                )
+
+        else:
+            db.session.add(User(
+                username="Muh Aldo Januar",
+                nama_lengkap="Muh Aldo Januar",
+                password=generate_password_hash(
+                    "Aldo@accounting"
+                ),
+                role="accounting",
+                divisi="Accounting"
+            ))
+
+        db.session.commit()
+
+    except Exception:
+        db.session.rollback()
+        raise
 
 
 # =========================
