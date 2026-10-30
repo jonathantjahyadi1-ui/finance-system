@@ -41,8 +41,11 @@ uri = os.getenv("DATABASE_URL")
 if not uri:
     raise Exception("DATABASE_URL belum diset di environment!")
 
+# Gunakan driver yang dipasang di requirements; default SQLAlchemy bisa berubah.
 if uri.startswith("postgres://"):
-    uri = uri.replace("postgres://", "postgresql://", 1)
+    uri = uri.replace("postgres://", "postgresql+psycopg2://", 1)
+elif uri.startswith("postgresql://"):
+    uri = uri.replace("postgresql://", "postgresql+psycopg2://", 1)
 
 if "sslmode" not in uri:
     if "?" in uri:
