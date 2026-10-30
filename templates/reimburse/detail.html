@@ -63,14 +63,17 @@
                                 <td>{{ item.qty }}</td>
                                 <td class="amount">{{ money(item.price * item.qty) }}</td>
                                 <td>
-                                    {% if item.receipt_photo %}
-                                        <a href="{{ reimburse_file_url(item.receipt_photo) }}" target="_blank" rel="noopener" title="Buka nota">
-                                            <img class="receipt-thumb" src="{{ reimburse_file_url(item.receipt_photo) }}" alt="Nota {{ item.item_name }}">
-                                        </a>
-                                    {% elif reimb.receipt_photo %}
-                                        <a href="{{ reimburse_file_url(reimb.receipt_photo) }}" target="_blank" rel="noopener" title="Buka nota lama">
-                                            <img class="receipt-thumb" src="{{ reimburse_file_url(reimb.receipt_photo) }}" alt="Nota reimburse">
-                                        </a>
+                                    {% set receipt = item.receipt_photo or reimb.receipt_photo %}
+                                    {% if receipt %}
+                                        {% if receipt.lower().endswith('.pdf') %}
+                                            <a class="btn btn-outline-primary btn-sm" href="{{ reimburse_file_url(receipt) }}" target="_blank" rel="noopener" title="Buka nota PDF">
+                                                <i class="bi bi-file-earmark-pdf"></i> Buka PDF
+                                            </a>
+                                        {% else %}
+                                            <a href="{{ reimburse_file_url(receipt) }}" target="_blank" rel="noopener" title="Buka nota">
+                                                <img class="receipt-thumb" src="{{ reimburse_file_url(receipt) }}" alt="Nota {{ item.item_name }}">
+                                            </a>
+                                        {% endif %}
                                     {% else %}
                                         <span class="text-muted">Tidak ada</span>
                                     {% endif %}
@@ -108,17 +111,23 @@
                 {% endif %}
 
                 {% if reimb.payment_proof %}
-                    <a class="proof-preview" href="{{ reimburse_file_url(reimb.payment_proof) }}" target="_blank" rel="noopener">
-                        <img src="{{ reimburse_file_url(reimb.payment_proof) }}" alt="Bukti pembayaran reimburse #{{ reimb.id }}">
-                    </a>
+                    {% if not reimb.payment_proof.lower().endswith('.pdf') %}
+                        <a class="proof-preview" href="{{ reimburse_file_url(reimb.payment_proof) }}" target="_blank" rel="noopener">
+                            <img src="{{ reimburse_file_url(reimb.payment_proof) }}" alt="Bukti pembayaran reimburse #{{ reimb.id }}">
+                        </a>
+                    {% endif %}
                     <a class="btn btn-outline-primary w-100 mt-3" href="{{ reimburse_file_url(reimb.payment_proof) }}" target="_blank" rel="noopener">
-                        <i class="bi bi-arrows-fullscreen"></i> Buka bukti pembayaran
+                        {% if reimb.payment_proof.lower().endswith('.pdf') %}
+                            <i class="bi bi-file-earmark-pdf"></i> Buka bukti pembayaran (PDF)
+                        {% else %}
+                            <i class="bi bi-arrows-fullscreen"></i> Buka bukti pembayaran
+                        {% endif %}
                     </a>
                 {% elif user.role == 'direktur' %}
                     <form method="POST" enctype="multipart/form-data" data-loading-form>
                         <label class="form-label" for="payment_proof">Upload bukti pembayaran</label>
-                        <input class="form-control mb-2" id="payment_proof" name="payment_proof" type="file" accept="image/jpeg,image/png" required>
-                        <span class="field-help mb-3">Format yang didukung: JPG, JPEG, atau PNG.</span>
+                        <input class="form-control mb-2" id="payment_proof" name="payment_proof" type="file" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" required>
+                        <span class="field-help mb-3">Format yang didukung: JPG, JPEG, PNG, atau PDF.</span>
                         <button class="btn btn-success w-100" type="submit">
                             <i class="bi bi-cloud-arrow-up"></i> Upload & tandai dibayar
                         </button>

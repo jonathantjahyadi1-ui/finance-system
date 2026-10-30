@@ -24,7 +24,7 @@ if not SUPABASE_SERVICE_ROLE_KEY:
 
 supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
-ALLOWED_REIMBURSE_EXTENSIONS = {'jpg', 'jpeg', 'png'}
+ALLOWED_REIMBURSE_EXTENSIONS = {'jpg', 'jpeg', 'png', 'pdf'}
 
 
 def allowed_reimburse_file(filename):
@@ -39,7 +39,7 @@ def upload_reimburse_to_supabase(file, folder):
         return None
 
     if not allowed_reimburse_file(file.filename):
-        raise ValueError("Format file reimburse harus JPG, JPEG, atau PNG.")
+        raise ValueError("Format file reimburse harus JPG, JPEG, PNG, atau PDF.")
 
     original_filename = secure_filename(file.filename)
     timestamp = datetime.now().strftime('%Y%m%d%H%M%S%f')
@@ -48,8 +48,8 @@ def upload_reimburse_to_supabase(file, folder):
     storage_path = f"reimburse/{folder}/{filename}"
 
     content_type = (
+        mimetypes.guess_type(original_filename.lower())[0] or
         file.mimetype or
-        mimetypes.guess_type(original_filename)[0] or
         "application/octet-stream"
     )
 
@@ -591,7 +591,7 @@ def submit():
                     flash(f'Gagal upload nota untuk item "{name}".', 'danger')
                     return redirect(url_for('reimburse.submit'))
             else:
-                flash(f'Foto nota untuk item "{name}" wajib diupload.', 'danger')
+                flash(f'File nota untuk item "{name}" wajib diupload.', 'danger')
                 return redirect(url_for('reimburse.submit'))
 
             total += price * qty
