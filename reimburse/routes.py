@@ -68,7 +68,6 @@ def upload_reimburse_to_supabase(file, folder):
 
     return storage_path
 
-
 def create_reimburse_signed_url(storage_path, expires_in=300):
     response = supabase.storage.from_(SUPABASE_STORAGE_BUCKET).create_signed_url(
         storage_path,
